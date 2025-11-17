@@ -1,0 +1,144 @@
+/* --- General Styling --- */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f7f6;
+    color: #333;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.container {
+    background-color: #fff;
+    padding: 30px 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 600px;
+}
+
+h1 {
+    color: #007bff;
+    text-align: center;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 10px;
+    margin-bottom: 25px;
+}
+
+/* --- Form Styling --- */
+form label {
+    display: inline-block;
+    width: 200px;
+    margin-bottom: 15px;
+    font-weight: bold;
+}
+
+form input[type="number"] {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    width: calc(100% - 220px);
+}
+
+button[type="submit"] {
+    background-color: #28a745;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 20px;
+    width: 100%;
+}
+
+button[type="submit"]:hover {
+    background-color: #218838;
+}
+
+/* --- Results Styling --- */
+.results {
+    margin-top: 30px;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #e9ecef;
+}
+
+.results h2 {
+    color: #007bff;
+    border-bottom: 1px dashed #007bff;
+    padding-bottom: 5px;
+}
+
+.fcr-result {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #dc3545; /* Red color for emphasis */
+    margin: 10px 0;
+}
+
+.recommendation {
+    font-style: italic;
+    padding: 10px;
+    background-color: #ffc107; /* Yellow background for attention */
+    border-radius: 5px;
+    color: #333;
+}
+/* --- New styles for formulation page (Fixes inline CSS warnings) --- */
+
+.form-select {
+    padding: 10px;
+    border-radius: 5px;
+    width: 300px;
+}
+
+.submit-button-inline {
+    width: auto;
+    margin-left: 20px;
+    /* Reuse styles from button[type="submit"] but adjust width */
+    background-color: #28a745;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 20px;
+}
+.submit-button-inline:hover {
+    background-color: #218838;
+}
+
+.nav-link-bottom {
+    text-align: center;
+    margin-top: 30px;
+}
+
+/* Ensure no style is applied to the <ul> tag itself */
+.results ul {
+    /* Basic list styles */
+    padding-left: 20px;
+    margin-top: 10px;
+}
+/* --- New style for top navigation link --- */
+.nav-link-top {
+    text-align: right;
+    margin-bottom: 20px;
+}
+/* C:\FlaskAppTest\static\styles.css (Add to the end of the file) */
+
+.nav-link-bar {
+    text-align: right; /* Replicates the 'text-align: right;' inline style */
+    margin-bottom: 20px; /* Provides separation from the H1 */
+}
+
+.nav-link-item {
+    margin-left: 15px; /* Replicates the 'margin-right: 15px;' style for spacing between links */
+}
+
+.nav-link-item:first-child {
+    /* Ensures only the space to the left of the links is controlled */
+    margin-right: 0;
+}

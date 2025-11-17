@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feed Formulation Guide</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Feed Formulation Guide</h1>
+        
+        <p>Select an animal type to view the general nutritional and ingredient targets for their feed composition.</p>
+
+        <form method="POST" action="{{ url_for('formulate') }}">
+            <label for="animal_type">Select Animal Type:</label>
+            <select name="animal_type" required class="form-select" title="Select the animal type for the feed guide">
+                <option value="">-- Choose Animal --</option>
+                {% for type in animal_types %}
+                <option value="{{ type }}">{{ type }}</option>
+                {% endfor %}
+            </select>
+            
+            <button type="submit" class="submit-button-inline">Get Formulation Guide</button>
+        </form>
+
+        {% if error %}
+            <p class="error-message">**Error:** {{ error }}</p>
+        {% endif %}
+
+        {% if result %}
+            <div class="results">
+                <h2>Formulation Targets for {{ result.type }}</h2>
+                
+                <h3>Nutritional Requirements:</h3>
+                <ul>
+                    <li>**Crude Protein:** {{ result.targets.Protein }}</li>
+                    <li>**Energy (TDN):** {{ result.targets['Energy (TDN)'] }}</li>
+                    <li>**Fiber (ADF):** {{ result.targets['Fiber (ADF)'] }}</li>
+                </ul>
+
+                <h3>Key Ingredients:</h3>
+                    <ul role="list">
+                        {%- for ingredient in result.targets.Ingredients -%} 
+                        <li>{{ ingredient }}</li>
+                        {%- endfor -%}
+                    </ul>    
+            </div>
+        {% endif %}
+        
+        <p class="nav-link-bottom">
+            <a href="{{ url_for('home') }}">← Back to FCR Predictor</a>
+        </p>
+    </div>
+</body>
+</html>
