@@ -1,0 +1,8 @@
+# Python environment files
+__pycache__/
+*.pyc
+venv/
+
+# Database and environment specifics
+fcr_data.db
+.env
