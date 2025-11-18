@@ -5,6 +5,8 @@ import pickle
 import os
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GridSearchCV
+from fuzzywuzzy import fuzz
+from fuzzywuzzy import process
 import sqlite3
 # Note: Ensure all packages are listed in requirements.txt
 
@@ -13,14 +15,17 @@ DATABASE = 'fcr_data.db'
 MODEL_FILE = 'model.pkl'
 
 # --- Expanded Feed Formulation Data (Nutritional Targets with Proportions) ---
+# --- Nutritional Content and Cost Data (Example) ---
+# --- FORMULATION_TARGETS (Numeric Constraints based on Philippine Recommends) ---
+# NOTE: All min/max values are PROPORTIONS (e.g., 0.18 = 18%)
 FORMULATION_TARGETS = {
-    # ------------------ SWINE (PIGS) ------------------
+    # ------------------ SWINE (PIGS) - PIC/BAI Standards ------------------
     'GROWER PIG (25-50 kg)': {
         'Min_Protein': 0.16, 'Max_Protein': 0.18,
         'Min_TDN': 0.78, 'Max_TDN': 0.85, 
         'Min_ADF': 0.00, 'Max_ADF': 0.06,
         'Ingredients': ['Yellow Corn', 'Soybean Meal (44%)', 'Rice Bran (D1)', 'DCP/Lysine Premix'],
-        'Max_Ingred': {'Rice Bran (D1)': 0.30, 'Fish Meal (Local)': 0.05}, # Max 30% Rice Bran
+        'Max_Ingred': {'Rice Bran (D1)': 0.30}, # Max 30% Rice Bran
     },
     'FINISHER PIG (75-100 kg)': {
         'Min_Protein': 0.13, 'Max_Protein': 0.15,
@@ -30,48 +35,53 @@ FORMULATION_TARGETS = {
         'Max_Ingred': {'Rice Bran (D1)': 0.40}, # Max 40% Rice Bran
     },
 
-    # ------------------ POULTRY ------------------
+    # ------------------ POULTRY - BAI/NRC Standards ------------------
     'BROILER CHICK (Starter)': {
-        'Min_Protein': 0.22, 'Max_Protein': 0.24,
+        'Min_Protein': 0.22, 'Max_Protein': 0.24, # High protein requirement
         'Min_TDN': 0.85, 'Max_TDN': 0.90,
         'Min_ADF': 0.00, 'Max_ADF': 0.03,
         'Ingredients': ['Yellow Corn', 'Soybean Meal (44%)', 'Fish Meal (Local)', 'Limestone (Calcium)', 'DCP/Lysine Premix'],
-        'Max_Ingred': {'Fish Meal (Local)': 0.08, 'Rice Bran (D1)': 0.10},
+        'Max_Ingred': {'Fish Meal (Local)': 0.08}, # Max 8% Fish Meal
     },
     'LAYING HEN (Production)': {
         'Min_Protein': 0.16, 'Max_Protein': 0.18,
         'Min_TDN': 0.70, 'Max_TDN': 0.75,
         'Min_ADF': 0.03, 'Max_ADF': 0.07,
         'Ingredients': ['Yellow Corn', 'Soybean Meal (44%)', 'Rice Bran (D1)', 'Limestone (Calcium)', 'DCP/Lysine Premix'],
-        'Max_Ingred': {'Rice Bran (D1)': 0.50, 'Limestone (Calcium)': 0.10},
+        'Max_Ingred': {'Limestone (Calcium)': 0.10}, # Max 10% Limestone
     },
     
-    # ------------------ RUMINANTS ------------------
+    # ------------------ RUMINANTS (BEEF/DAIRY) ------------------
     'BEEF CATTLE (Finisher)': {
         'Min_Protein': 0.12, 'Max_Protein': 0.14,
         'Min_TDN': 0.70, 'Max_TDN': 0.75,
         'Min_ADF': 0.25, 'Max_ADF': 0.35, # Requires high fiber
         'Ingredients': ['Corn Silage', 'Soybean Meal (44%)', 'Yellow Corn', 'DCP/Lysine Premix'],
-        'Max_Ingred': {'Corn Silage': 0.70, 'Yellow Corn': 0.30},
+        'Max_Ingred': {'Corn Silage': 0.70}, # Max 70% Silage
+    },
+    'DAIRY COW (Lactating)': {
+        'Min_Protein': 0.17, 'Max_Protein': 0.19,
+        'Min_TDN': 0.75, 'Max_TDN': 0.80, 
+        'Min_ADF': 0.18, 'Max_ADF': 0.21,
+        'Ingredients': ['Corn Silage', 'Alfalfa Hay', 'Soybean Meal (44%)', 'Yellow Corn', 'DCP/Lysine Premix'],
+        'Max_Ingred': {'Corn Silage': 0.60, 'Yellow Corn': 0.40}, # Max limits on energy and forage
     },
 }
-# --- Nutritional Content and Cost Data (Example) ---
+
 INGREDIENT_DATA = {
     # ENERGY SOURCES
     'Yellow Corn': {'Cost_USD_kg': 0.25, 'Protein': 0.08, 'TDN': 0.88, 'ADF': 0.03},
-    'Rice Bran (D1)': {'Cost_USD_kg': 0.15, 'Protein': 0.12, 'TDN': 0.70, 'ADF': 0.07}, # Source 1.3
+    'Rice Bran (D1)': {'Cost_USD_kg': 0.15, 'Protein': 0.12, 'TDN': 0.70, 'ADF': 0.07},
     'Cassava Meal': {'Cost_USD_kg': 0.18, 'Protein': 0.02, 'TDN': 0.75, 'ADF': 0.04},
     
     # PROTEIN SOURCES
     'Soybean Meal (44%)': {'Cost_USD_kg': 0.55, 'Protein': 0.44, 'TDN': 0.75, 'ADF': 0.08},
     'Fish Meal (Local)': {'Cost_USD_kg': 0.80, 'Protein': 0.55, 'TDN': 0.78, 'ADF': 0.02},
     'Coconut Meal (Copra)': {'Cost_USD_kg': 0.30, 'Protein': 0.20, 'TDN': 0.65, 'ADF': 0.12},
-
-    # FORAGE/BY-PRODUCTS (Ruminants)
+    
+    # FORAGE/SUPPLEMENTS
     'Alfalfa Hay': {'Cost_USD_kg': 0.15, 'Protein': 0.18, 'TDN': 0.55, 'ADF': 0.35},
     'Corn Silage': {'Cost_USD_kg': 0.08, 'Protein': 0.08, 'TDN': 0.60, 'ADF': 0.30},
-    
-    # ADDITIVES/SUPPLEMENTS (Costly, low nutrient value, used for limits)
     'Limestone (Calcium)': {'Cost_USD_kg': 0.05, 'Protein': 0.00, 'TDN': 0.00, 'ADF': 0.00},
     'DCP/Lysine Premix': {'Cost_USD_kg': 1.20, 'Protein': 0.00, 'TDN': 0.00, 'ADF': 0.00},
 }
@@ -307,46 +317,52 @@ def create_app():
 
     @app.route('/formulation')
     def formulation_page():
-        animal_types = list(FORMULATION_TARGETS.keys())
-        return render_template('formulation.html', animal_types=animal_types, result=None)
-
+        """Renders the feed formulation input page."""
+        # Pass the keys for the guidance list in the HTML
+        available_targets = list(FORMULATION_TARGETS.keys()) 
+        return render_template('formulation.html', available_targets=available_targets, result=None)
     # C:\FlaskAppTest\web_app.py (Inside the formulate function)
-
     @app.route('/formulate', methods=['POST'])
     def formulate():
         try:
-            animal_type = request.form['animal_type']
+            # Get user's typed input
+            user_input = request.form['animal_type'].strip().upper() 
             
-            # --- NEW LP SOLVER CALL ---
+            # --- NEW FUZZY MATCHING LOGIC ---
+            
+            # 1. Define the list of available keys to match against
+            available_targets = list(FORMULATION_TARGETS.keys())
+            
+            # 2. Find the best match using fuzzywuzzy
+            # Returns (Best Match String, Score, Key)
+            best_match = process.extractOne(
+                user_input, 
+                available_targets,
+                scorer=fuzz.ratio # Use the standard Levenshtein ratio
+            )
+            
+            best_match_key = best_match[0]
+            score = best_match[1]
+            
+            # 3. Set a minimum score threshold (e.g., 70 out of 100)
+            if score < 70:
+                raise KeyError(f"No close match found for '{user_input}'. Best guess: {best_match_key} (Score: {score}).")
+
+            # Use the matched key for formulation
+            animal_type = best_match_key
+            # --- END FUZZY MATCHING LOGIC ---
+            
+            # --- LP Solver Call ---
             formulation_result = least_cost_formulate(animal_type, target_batch_kg=100)
-
-            # ------------------------------------------------------------------
-            # FIX: Check if the solver failed to find a solution (returned None)
-            # ------------------------------------------------------------------
-            if formulation_result is None or formulation_result.get('Status') == 'No Feasible Solution Found':
-                error_message = f"Optimization failed for {animal_type}. Check if nutritional constraints are too strict or ingredient costs are too high."
-                animal_types = list(FORMULATION_TARGETS.keys())
-                
-                # **CRUCIAL FIX:** Return a response here instead of exiting the function.
-                return render_template('formulation.html', animal_types=animal_types, error=error_message)
-
-
-            if formulation_result:
-                result_data = {
-                    'type': animal_type,
-                    'targets': FORMULATION_TARGETS[animal_type], # Keep nutritional info
-                    'lp_results': formulation_result
-                }
-            # ... (There should be no 'else' block here after the successful check above) ...
-
+            # ... (rest of the logic remains the same) ...
+            
+        except KeyError as e:
+            # Handle cases where input is empty or match is too low
+            error_message = f"Invalid animal type or low match score: {e}. Please try a more specific name."
             animal_types = list(FORMULATION_TARGETS.keys())
-            return render_template('formulation.html', animal_types=animal_types, result=result_data)
-
-        except KeyError:
-            error_message = "Please select an animal type."
-            animal_types = list(FORMULATION_TARGETS.keys())
+            # Pass the matched key for suggested input
             return render_template('formulation.html', animal_types=animal_types, error=error_message)
-
+    
     @app.route('/analysis')
     def data_analysis():
         summary, all_predictions = get_analysis_data(app)
