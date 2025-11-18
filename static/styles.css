@@ -142,3 +142,24 @@ button[type="submit"]:hover {
     /* Ensures only the space to the left of the links is controlled */
     margin-right: 0;
 }
+/* --- Styling for the Ingredients Table --- */
+.ingredient-table {
+    width: 100%;
+    margin-top: 15px;
+    border-collapse: collapse;
+}
+
+.ingredient-table th, .ingredient-table td {
+    padding: 10px;
+    border: 1px solid #ccc;
+    text-align: left;
+}
+
+.ingredient-table th {
+    background-color: #007bff;
+    color: white;
+}
+
+.ingredient-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}

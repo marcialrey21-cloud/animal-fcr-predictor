@@ -12,34 +12,31 @@ import sqlite3
 DATABASE = 'fcr_data.db' 
 MODEL_FILE = 'model.pkl'
 
-# --- Expanded Feed Formulation Data (Nutritional Targets) ---
+# --- Expanded Feed Formulation Data (Nutritional Targets with Proportions) ---
 FORMULATION_TARGETS = {
     # ------------------ DAIRY CATTLE ------------------
     'DAIRY COW (Lactating)': {
         'Protein': '16-19%',
         'Energy (TDN)': '75-78%',
         'Fiber (ADF)': '18-21%',
-        'Ingredients': ['Corn Silage', 'Alfalfa Hay', 'Soybean Meal', 'Mineral/Vitamin Premix']
+        'Basis': '100 kg Total Feed',
+        'Ingredients': [
+            ('Corn Silage', '55.0 kg'),
+            ('Alfalfa Hay', '25.0 kg'),
+            ('Soybean Meal', '17.0 kg'),
+            ('Mineral/Vitamin Premix', '3.0 kg')
+        ]
     },
     'DAIRY CALF (Starter)': {
         'Protein': '20-22%',
         'Energy (TDN)': '80%',
         'Fiber (ADF)': '10-15%',
-        'Ingredients': ['Milk Replacer', 'Textured Calf Starter Grain', 'Hay (small amounts)']
-    },
-    
-    # ------------------ BEEF CATTLE ------------------
-    'BEEF CALF (Weaning)': {
-        'Protein': '14-16%',
-        'Energy (TDN)': '65-70%',
-        'Fiber (ADF)': '25-35%',
-        'Ingredients': ['Grass Hay', 'Range Cubes', 'Protein Supplement']
-    },
-    'BEEF CATTLE (Finisher)': {
-        'Protein': '12-14%',
-        'Energy (TDN)': '80-85%',
-        'Fiber (ADF)': '8-12%',
-        'Ingredients': ['High-Moisture Corn', 'Distillers Grains', 'Mineral/Vitamin Premix']
+        'Basis': '100 kg Total Feed',
+        'Ingredients': [
+            ('Milk Replacer', '50.0 kg'),
+            ('Calf Starter Grain', '45.0 kg'),
+            ('Hay (small amounts)', '5.0 kg')
+        ]
     },
     
     # ------------------ SWINE (PIGS) ------------------
@@ -47,13 +44,24 @@ FORMULATION_TARGETS = {
         'Protein': '14-16%',
         'Energy (TDN)': '85%',
         'Fiber (ADF)': '<5%',
-        'Ingredients': ['Corn/Barley', 'Soybean Meal', 'Fat/Oil Source', 'Mineral/Vitamin Premix']
+        'Basis': '100 kg Total Feed',
+        'Ingredients': [
+            ('Corn/Barley', '68.0 kg'),
+            ('Soybean Meal', '25.0 kg'),
+            ('Fat/Oil Source', '4.0 kg'),
+            ('Mineral/Vitamin Premix', '3.0 kg')
+        ]
     },
     'GROWER PIG': {
         'Protein': '18-20%',
         'Energy (TDN)': '80%',
         'Fiber (ADF)': '5-7%',
-        'Ingredients': ['Corn', 'Soybean Meal', 'Lysine Supplement']
+        'Basis': '100 kg Total Feed',
+        'Ingredients': [
+            ('Corn', '60.0 kg'),
+            ('Soybean Meal', '35.0 kg'),
+            ('Lysine/DCP Supplement', '5.0 kg')
+        ]
     },
     
     # ------------------ POULTRY ------------------
@@ -61,13 +69,13 @@ FORMULATION_TARGETS = {
         'Protein': '16-18%',
         'Energy (TDN)': '60%',
         'Fiber (ADF)': '3-5%',
-        'Ingredients': ['Corn/Wheat', 'Soybean Meal', 'Calcium Source (Limestone)', 'Mineral/Vitamin Premix']
-    },
-    'BROILER CHICK (Starter)': {
-        'Protein': '22-24%',
-        'Energy (TDN)': '70%',
-        'Fiber (ADF)': '2-4%',
-        'Ingredients': ['Corn', 'Soybean Meal', 'Fish Meal', 'Vitamin/Mineral Pack']
+        'Basis': '100 kg Total Feed',
+        'Ingredients': [
+            ('Corn/Wheat', '58.0 kg'),
+            ('Soybean Meal', '20.0 kg'),
+            ('Calcium Source (Limestone)', '15.0 kg'),
+            ('Mineral/Vitamin Pack', '7.0 kg')
+        ]
     }
 }
 # --- Database Initialization (Runs once when app starts) ---

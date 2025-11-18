@@ -40,13 +40,24 @@
                 </ul>
 
                 <h3>Key Ingredients:</h3>
-                    <ul role="list">
-                        {%- for ingredient in result.targets.Ingredients -%} 
-                        <li>{{ ingredient }}</li>
-                        {%- endfor -%}
-                    </ul>    
-            </div>
-        {% endif %}
+                <p>Proportions based on: <strong>{{ result.targets.Basis }}</strong></p>
+
+                <table class="ingredient-table">
+                    <thead>
+                        <tr>
+                            <th>Ingredient</th>
+                            <th>Approximate Quantity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for name, quantity in result.targets.Ingredients %}
+                        <tr>
+                            <td>{{ name }}</td>
+                            <td><strong>{{ quantity }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
         
         <p class="nav-link-bottom">
             <a href="{{ url_for('home') }}">← Back to FCR Predictor</a>
