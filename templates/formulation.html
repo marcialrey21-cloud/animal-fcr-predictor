@@ -30,27 +30,19 @@
 
         {% if result %}
             <div class="results">
-                <h2>Formulation Targets for {{ result.type }}</h2>
-                
-                <h3>Nutritional Requirements:</h3>
-                <ul role="list"> 
-                    <li>**Crude Protein:** {{ result.targets.Protein }}</li>
-                    <li>**Energy (TDN):** {{ result.targets['Energy (TDN)'] }}</li>
-                    <li>**Fiber (ADF):** {{ result.targets['Fiber (ADF)'] }}</li>
-                </ul>
+                <h2>Least-Cost Formulation Results</h2>
+                <p>Total Cost (Target 100 kg): <strong>{{ result.lp_results.Cost }}</strong></p>
 
-                <h3>Key Ingredients:</h3>
-                <p>Proportions based on: <strong>{{ result.targets.Basis }}</strong></p>
-
+                <h3>Optimized Ingredients:</h3>
                 <table class="ingredient-table">
                     <thead>
                         <tr>
                             <th>Ingredient</th>
-                            <th>Approximate Quantity</th>
+                            <th>Calculated Quantity (kg)</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for name, quantity in result.targets.Ingredients %}
+                        {% for name, quantity in result.lp_results.Ingredients %}
                         <tr>
                             <td>{{ name }}</td>
                             <td><strong>{{ quantity }}</strong></td>
@@ -58,7 +50,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
-            </div>
+            </div>        
         {% endif %} 
         <p class="nav-link-bottom">
             <a href="{{ url_for('home') }}">← Back to FCR Predictor</a>

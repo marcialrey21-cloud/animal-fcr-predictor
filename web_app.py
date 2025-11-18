@@ -14,69 +14,66 @@ MODEL_FILE = 'model.pkl'
 
 # --- Expanded Feed Formulation Data (Nutritional Targets with Proportions) ---
 FORMULATION_TARGETS = {
-    # ------------------ DAIRY CATTLE ------------------
-    'DAIRY COW (Lactating)': {
-        'Protein': '16-19%',
-        'Energy (TDN)': '75-78%',
-        'Fiber (ADF)': '18-21%',
-        'Basis': '100 kg Total Feed',
-        'Ingredients': [
-            ('Corn Silage', '55.0 kg'),
-            ('Alfalfa Hay', '25.0 kg'),
-            ('Soybean Meal', '17.0 kg'),
-            ('Mineral/Vitamin Premix', '3.0 kg')
-        ]
-    },
-    'DAIRY CALF (Starter)': {
-        'Protein': '20-22%',
-        'Energy (TDN)': '80%',
-        'Fiber (ADF)': '10-15%',
-        'Basis': '100 kg Total Feed',
-        'Ingredients': [
-            ('Milk Replacer', '50.0 kg'),
-            ('Calf Starter Grain', '45.0 kg'),
-            ('Hay (small amounts)', '5.0 kg')
-        ]
-    },
-    
     # ------------------ SWINE (PIGS) ------------------
-    'FINISHING PIG (Market)': {
-        'Protein': '14-16%',
-        'Energy (TDN)': '85%',
-        'Fiber (ADF)': '<5%',
-        'Basis': '100 kg Total Feed',
-        'Ingredients': [
-            ('Corn/Barley', '68.0 kg'),
-            ('Soybean Meal', '25.0 kg'),
-            ('Fat/Oil Source', '4.0 kg'),
-            ('Mineral/Vitamin Premix', '3.0 kg')
-        ]
+    'GROWER PIG (25-50 kg)': {
+        'Min_Protein': 0.16, 'Max_Protein': 0.18,
+        'Min_TDN': 0.78, 'Max_TDN': 0.85, 
+        'Min_ADF': 0.00, 'Max_ADF': 0.06,
+        'Ingredients': ['Yellow Corn', 'Soybean Meal (44%)', 'Rice Bran (D1)', 'DCP/Lysine Premix'],
+        'Max_Ingred': {'Rice Bran (D1)': 0.30, 'Fish Meal (Local)': 0.05}, # Max 30% Rice Bran
     },
-    'GROWER PIG': {
-        'Protein': '18-20%',
-        'Energy (TDN)': '80%',
-        'Fiber (ADF)': '5-7%',
-        'Basis': '100 kg Total Feed',
-        'Ingredients': [
-            ('Corn', '60.0 kg'),
-            ('Soybean Meal', '35.0 kg'),
-            ('Lysine/DCP Supplement', '5.0 kg')
-        ]
+    'FINISHER PIG (75-100 kg)': {
+        'Min_Protein': 0.13, 'Max_Protein': 0.15,
+        'Min_TDN': 0.82, 'Max_TDN': 0.90,
+        'Min_ADF': 0.00, 'Max_ADF': 0.04,
+        'Ingredients': ['Yellow Corn', 'Soybean Meal (44%)', 'Rice Bran (D1)', 'DCP/Lysine Premix'],
+        'Max_Ingred': {'Rice Bran (D1)': 0.40}, # Max 40% Rice Bran
+    },
+
+    # ------------------ POULTRY ------------------
+    'BROILER CHICK (Starter)': {
+        'Min_Protein': 0.22, 'Max_Protein': 0.24,
+        'Min_TDN': 0.85, 'Max_TDN': 0.90,
+        'Min_ADF': 0.00, 'Max_ADF': 0.03,
+        'Ingredients': ['Yellow Corn', 'Soybean Meal (44%)', 'Fish Meal (Local)', 'Limestone (Calcium)', 'DCP/Lysine Premix'],
+        'Max_Ingred': {'Fish Meal (Local)': 0.08, 'Rice Bran (D1)': 0.10},
+    },
+    'LAYING HEN (Production)': {
+        'Min_Protein': 0.16, 'Max_Protein': 0.18,
+        'Min_TDN': 0.70, 'Max_TDN': 0.75,
+        'Min_ADF': 0.03, 'Max_ADF': 0.07,
+        'Ingredients': ['Yellow Corn', 'Soybean Meal (44%)', 'Rice Bran (D1)', 'Limestone (Calcium)', 'DCP/Lysine Premix'],
+        'Max_Ingred': {'Rice Bran (D1)': 0.50, 'Limestone (Calcium)': 0.10},
     },
     
-    # ------------------ POULTRY ------------------
-    'LAYING HEN (Production)': {
-        'Protein': '16-18%',
-        'Energy (TDN)': '60%',
-        'Fiber (ADF)': '3-5%',
-        'Basis': '100 kg Total Feed',
-        'Ingredients': [
-            ('Corn/Wheat', '58.0 kg'),
-            ('Soybean Meal', '20.0 kg'),
-            ('Calcium Source (Limestone)', '15.0 kg'),
-            ('Mineral/Vitamin Pack', '7.0 kg')
-        ]
-    }
+    # ------------------ RUMINANTS ------------------
+    'BEEF CATTLE (Finisher)': {
+        'Min_Protein': 0.12, 'Max_Protein': 0.14,
+        'Min_TDN': 0.70, 'Max_TDN': 0.75,
+        'Min_ADF': 0.25, 'Max_ADF': 0.35, # Requires high fiber
+        'Ingredients': ['Corn Silage', 'Soybean Meal (44%)', 'Yellow Corn', 'DCP/Lysine Premix'],
+        'Max_Ingred': {'Corn Silage': 0.70, 'Yellow Corn': 0.30},
+    },
+}
+# --- Nutritional Content and Cost Data (Example) ---
+INGREDIENT_DATA = {
+    # ENERGY SOURCES
+    'Yellow Corn': {'Cost_USD_kg': 0.25, 'Protein': 0.08, 'TDN': 0.88, 'ADF': 0.03},
+    'Rice Bran (D1)': {'Cost_USD_kg': 0.15, 'Protein': 0.12, 'TDN': 0.70, 'ADF': 0.07}, # Source 1.3
+    'Cassava Meal': {'Cost_USD_kg': 0.18, 'Protein': 0.02, 'TDN': 0.75, 'ADF': 0.04},
+    
+    # PROTEIN SOURCES
+    'Soybean Meal (44%)': {'Cost_USD_kg': 0.55, 'Protein': 0.44, 'TDN': 0.75, 'ADF': 0.08},
+    'Fish Meal (Local)': {'Cost_USD_kg': 0.80, 'Protein': 0.55, 'TDN': 0.78, 'ADF': 0.02},
+    'Coconut Meal (Copra)': {'Cost_USD_kg': 0.30, 'Protein': 0.20, 'TDN': 0.65, 'ADF': 0.12},
+
+    # FORAGE/BY-PRODUCTS (Ruminants)
+    'Alfalfa Hay': {'Cost_USD_kg': 0.15, 'Protein': 0.18, 'TDN': 0.55, 'ADF': 0.35},
+    'Corn Silage': {'Cost_USD_kg': 0.08, 'Protein': 0.08, 'TDN': 0.60, 'ADF': 0.30},
+    
+    # ADDITIVES/SUPPLEMENTS (Costly, low nutrient value, used for limits)
+    'Limestone (Calcium)': {'Cost_USD_kg': 0.05, 'Protein': 0.00, 'TDN': 0.00, 'ADF': 0.00},
+    'DCP/Lysine Premix': {'Cost_USD_kg': 1.20, 'Protein': 0.00, 'TDN': 0.00, 'ADF': 0.00},
 }
 # --- Database Initialization (Runs once when app starts) ---
 def init_db(app):
@@ -129,6 +126,75 @@ def get_analysis_data(app):
         
     return summary, data_list
 
+# C:\FlaskAppTest\web_app.py (New Solver Function)
+
+from pulp import LpProblem, LpMinimize, LpVariable, value
+
+def least_cost_formulate(animal_type, target_batch_kg=100):
+    """
+    Solves for the least-cost feed mix meeting nutritional targets 
+    for a given animal type using Linear Programming.
+    """
+    targets = FORMULATION_TARGETS.get(animal_type)
+    if targets is None:
+        # If the animal type doesn't exist in the dictionary, return None immediately.
+        return None 
+    
+    # Get the list of ingredients to be used for this animal (defined in the targets)
+    ING_KEYS = targets['Ingredients'] # <--- This variable MUST be defined after the check!
+    
+    # --- 2. Setup the Linear Problem ---
+    prob = LpProblem("Least Cost Feed Mix", LpMinimize)
+    
+    # Decision Variables: Quantity (kg) of each ingredient to use
+    x = LpVariable.dicts("Quantity", ING_KEYS, 0)
+    
+    if animal_type == 'FINISHING PIG (Market)':
+        # Example Target Constraints (as proportions of total feed)
+        TARGET_PROTEIN = (0.14, 0.16)  # 14% to 16%
+        TARGET_TDN = 0.85
+        
+        # Ingredients to consider (Keys from INGREDIENT_DATA)
+        ING_KEYS = ['Corn', 'Soybean Meal (48%)', 'Lysine/DCP Supplement']
+        
+    # --- 2. Setup the Linear Problem ---
+    prob = LpProblem("Least Cost Feed Mix", LpMinimize)
+    
+    # Decision Variables: Quantity (kg) of each ingredient to use
+    x = LpVariable.dicts("Quantity", ING_KEYS, 0) # Quantity >= 0
+    
+    # 3. Objective Function: Minimize Total Cost
+    prob += sum([INGREDIENT_DATA[i]['Cost_USD_kg'] * x[i] for i in ING_KEYS]), "Total Cost"
+    
+    # 4. Constraints
+    # a) Total Batch Weight Constraint (must equal 100 kg)
+    prob += sum([x[i] for i in ING_KEYS]) == target_batch_kg, "Total Weight"
+
+    # b) Minimum Protein Constraint
+    prob += sum([INGREDIENT_DATA[i]['Protein'] * x[i] for i in ING_KEYS]) >= target_batch_kg * TARGET_PROTEIN[0], "Min Protein"
+    
+    # c) Maximum Protein Constraint
+    prob += sum([INGREDIENT_DATA[i]['Protein'] * x[i] for i in ING_KEYS]) <= target_batch_kg * TARGET_PROTEIN[1], "Max Protein"
+    
+    # d) Ingredient Limits (e.g., max 50 kg of corn, just for example)
+    prob += x['Corn'] <= 70.0, "Max Corn"
+    
+    # 5. Solve the problem
+    prob.solve()
+    
+    # 6. Extract Results
+    if prob.status == 1: # 1 means optimal solution found
+        results = {
+            'Cost': f"${value(prob.objective):.2f}",
+            'Total_Weight_Check': value(sum([x[i] for i in ING_KEYS])),
+            'Ingredients': [
+                (i, f"{value(x[i]):.2f} kg") for i in ING_KEYS if value(x[i]) > 0.001
+            ]
+        }
+    else:
+        results = None # No feasible solution
+        
+    return results
 
 # --- The Application Factory ---
 def create_app():
@@ -244,15 +310,34 @@ def create_app():
         animal_types = list(FORMULATION_TARGETS.keys())
         return render_template('formulation.html', animal_types=animal_types, result=None)
 
+    # C:\FlaskAppTest\web_app.py (Inside the formulate function)
+
     @app.route('/formulate', methods=['POST'])
     def formulate():
         try:
             animal_type = request.form['animal_type']
-            targets = FORMULATION_TARGETS.get(animal_type, None)
-            if targets:
-                result_data = {'type': animal_type, 'targets': targets}
-            else:
-                return formulation_page(error="Invalid animal type selected.")
+            
+            # --- NEW LP SOLVER CALL ---
+            formulation_result = least_cost_formulate(animal_type, target_batch_kg=100)
+
+            # ------------------------------------------------------------------
+            # FIX: Check if the solver failed to find a solution (returned None)
+            # ------------------------------------------------------------------
+            if formulation_result is None or formulation_result.get('Status') == 'No Feasible Solution Found':
+                error_message = f"Optimization failed for {animal_type}. Check if nutritional constraints are too strict or ingredient costs are too high."
+                animal_types = list(FORMULATION_TARGETS.keys())
+                
+                # **CRUCIAL FIX:** Return a response here instead of exiting the function.
+                return render_template('formulation.html', animal_types=animal_types, error=error_message)
+
+
+            if formulation_result:
+                result_data = {
+                    'type': animal_type,
+                    'targets': FORMULATION_TARGETS[animal_type], # Keep nutritional info
+                    'lp_results': formulation_result
+                }
+            # ... (There should be no 'else' block here after the successful check above) ...
 
             animal_types = list(FORMULATION_TARGETS.keys())
             return render_template('formulation.html', animal_types=animal_types, result=result_data)
