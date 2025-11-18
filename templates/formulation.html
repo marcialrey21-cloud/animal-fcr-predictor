@@ -33,7 +33,7 @@
                 <h2>Formulation Targets for {{ result.type }}</h2>
                 
                 <h3>Nutritional Requirements:</h3>
-                <ul>
+                <ul role="list"> 
                     <li>**Crude Protein:** {{ result.targets.Protein }}</li>
                     <li>**Energy (TDN):** {{ result.targets['Energy (TDN)'] }}</li>
                     <li>**Fiber (ADF):** {{ result.targets['Fiber (ADF)'] }}</li>
@@ -58,7 +58,8 @@
                         {% endfor %}
                     </tbody>
                 </table>
-        
+            </div>
+        {% endif %} 
         <p class="nav-link-bottom">
             <a href="{{ url_for('home') }}">← Back to FCR Predictor</a>
         </p>
