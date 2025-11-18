@@ -12,28 +12,64 @@ import sqlite3
 DATABASE = 'fcr_data.db' 
 MODEL_FILE = 'model.pkl'
 
-# --- Feed Formulation Data (Nutritional Targets) ---
+# --- Expanded Feed Formulation Data (Nutritional Targets) ---
 FORMULATION_TARGETS = {
-    'CALF': {
-        'Protein': '18-22%',
-        'Energy (TDN)': '75%',
-        'Fiber (ADF)': '15-20%',
-        'Ingredients': ['Forage (Hay/Silage)', 'Grain Mix (Corn/Soybean Meal)', 'Mineral/Vitamin Premix']
+    # ------------------ DAIRY CATTLE ------------------
+    'DAIRY COW (Lactating)': {
+        'Protein': '16-19%',
+        'Energy (TDN)': '75-78%',
+        'Fiber (ADF)': '18-21%',
+        'Ingredients': ['Corn Silage', 'Alfalfa Hay', 'Soybean Meal', 'Mineral/Vitamin Premix']
     },
-    'FINISHING PIG': {
+    'DAIRY CALF (Starter)': {
+        'Protein': '20-22%',
+        'Energy (TDN)': '80%',
+        'Fiber (ADF)': '10-15%',
+        'Ingredients': ['Milk Replacer', 'Textured Calf Starter Grain', 'Hay (small amounts)']
+    },
+    
+    # ------------------ BEEF CATTLE ------------------
+    'BEEF CALF (Weaning)': {
+        'Protein': '14-16%',
+        'Energy (TDN)': '65-70%',
+        'Fiber (ADF)': '25-35%',
+        'Ingredients': ['Grass Hay', 'Range Cubes', 'Protein Supplement']
+    },
+    'BEEF CATTLE (Finisher)': {
+        'Protein': '12-14%',
+        'Energy (TDN)': '80-85%',
+        'Fiber (ADF)': '8-12%',
+        'Ingredients': ['High-Moisture Corn', 'Distillers Grains', 'Mineral/Vitamin Premix']
+    },
+    
+    # ------------------ SWINE (PIGS) ------------------
+    'FINISHING PIG (Market)': {
         'Protein': '14-16%',
         'Energy (TDN)': '85%',
         'Fiber (ADF)': '<5%',
         'Ingredients': ['Corn/Barley', 'Soybean Meal', 'Fat/Oil Source', 'Mineral/Vitamin Premix']
     },
-    'LAYING HEN': {
+    'GROWER PIG': {
+        'Protein': '18-20%',
+        'Energy (TDN)': '80%',
+        'Fiber (ADF)': '5-7%',
+        'Ingredients': ['Corn', 'Soybean Meal', 'Lysine Supplement']
+    },
+    
+    # ------------------ POULTRY ------------------
+    'LAYING HEN (Production)': {
         'Protein': '16-18%',
         'Energy (TDN)': '60%',
         'Fiber (ADF)': '3-5%',
         'Ingredients': ['Corn/Wheat', 'Soybean Meal', 'Calcium Source (Limestone)', 'Mineral/Vitamin Premix']
+    },
+    'BROILER CHICK (Starter)': {
+        'Protein': '22-24%',
+        'Energy (TDN)': '70%',
+        'Fiber (ADF)': '2-4%',
+        'Ingredients': ['Corn', 'Soybean Meal', 'Fish Meal', 'Vitamin/Mineral Pack']
     }
 }
-
 # --- Database Initialization (Runs once when app starts) ---
 def init_db(app):
     """Initializes the database and creates the prediction table."""
@@ -238,7 +274,7 @@ def create_app():
     # --- Crucial: Return the configured app instance ---
     return app
 
-
+# ---tumakbo ka na ---
 # --- Local Runner for Development ONLY ---
 if __name__ == '__main__':
     # When running locally, call the factory to get the app
