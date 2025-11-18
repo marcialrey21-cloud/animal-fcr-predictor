@@ -312,8 +312,11 @@ def create_app():
         available_targets = list(FORMULATION_TARGETS.keys()) 
         return render_template('formulation.html', available_targets=available_targets, result=None)
     # C:\FlaskAppTest\web_app.py (Inside the formulate function)
-    @app.route('/formulate', methods=['POST'])
+    @app.route('/formulate', methods=['GET', 'POST'])
     def formulate():
+        if request.method == 'GET':
+            from flask import redirect, url_for
+            return redirect(url_for('formulation_page'))
         try:
             # Get user's typed input
             user_input = request.form['animal_type'].strip().upper() 
