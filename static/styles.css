@@ -163,3 +163,15 @@ button[type="submit"]:hover {
 .ingredient-table tbody tr:nth-child(even) {
     background-color: #f9f9f9;
 }
+.form-text-input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    width: 300px;
+    margin-bottom: 20px;
+}
+/* --- Styling for the Formulation Guide Details section --- */
+.profile-details-guide {
+    margin-bottom: 20px;
+}
+/* Ensure you use a table class for the styling of the table below */

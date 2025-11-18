@@ -13,14 +13,18 @@
         <p>Select an animal type to view the general nutritional and ingredient targets for their feed composition.</p>
 
         <form method="POST" action="{{ url_for('formulate') }}">
-            <label for="animal_type">Select Animal Type:</label>
-            <select name="animal_type" required class="form-select" title="Select the animal type for the feed guide">
-                <option value="">-- Choose Animal --</option>
-                {% for type in animal_types %}
-                <option value="{{ type }}">{{ type }}</option>
-                {% endfor %}
-            </select>
-            
+            <label for="animal_type">Enter Animal Type:</label>
+            <input 
+                type="text" 
+                name="animal_type" 
+                required 
+                placeholder="..."
+                class="form-text-input"
+
+            <details class="profile-details-guide">
+                <summary>Available Animal Profiles (Click to view)</summary>
+                </details>
+
             <button type="submit" class="submit-button-inline">Get Formulation Guide</button>
         </form>
 
