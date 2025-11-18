@@ -159,35 +159,25 @@ def least_cost_formulate(animal_type, target_batch_kg=100):
     # Decision Variables: Quantity (kg) of each ingredient to use
     x = LpVariable.dicts("Quantity", ING_KEYS, 0)
     
-    if animal_type == 'FINISHING PIG (Market)':
-        # Example Target Constraints (as proportions of total feed)
-        TARGET_PROTEIN = (0.14, 0.16)  # 14% to 16%
-        TARGET_TDN = 0.85
-        
-        # Ingredients to consider (Keys from INGREDIENT_DATA)
-        ING_KEYS = ['Corn', 'Soybean Meal (48%)', 'Lysine/DCP Supplement']
-        
-    # --- 2. Setup the Linear Problem ---
-    prob = LpProblem("Least Cost Feed Mix", LpMinimize)
-    
-    # Decision Variables: Quantity (kg) of each ingredient to use
-    x = LpVariable.dicts("Quantity", ING_KEYS, 0) # Quantity >= 0
-    
     # 3. Objective Function: Minimize Total Cost
     prob += sum([INGREDIENT_DATA[i]['Cost_USD_kg'] * x[i] for i in ING_KEYS]), "Total Cost"
     
     # 4. Constraints
-    # a) Total Batch Weight Constraint (must equal 100 kg)
     prob += sum([x[i] for i in ING_KEYS]) == target_batch_kg, "Total Weight"
+    # a) protein constraints (Min and Max)
+    prob += sum([INGREDIENT_DATA[i]['Protein'] * x[i] for i in ING_KEYS]) >= target_batch_kg * targets['Min_Protein'], "Min Protein"
+    prob += sum([INGREDIENT_DATA[i]['Protein'] * x[i] for i in ING_KEYS]) <= target_batch_kg * targets['Max_Protein'], "Max Protein"
 
-    # b) Minimum Protein Constraint
-    prob += sum([INGREDIENT_DATA[i]['Protein'] * x[i] for i in ING_KEYS]) >= target_batch_kg * TARGET_PROTEIN[0], "Min Protein"
+    # b) TDN (Energy) constraints (Min and Max)
+    prob += sum([INGREDIENT_DATA[i]['TDN'] * x[i] for i in ING_KEYS]) >= target_batch_kg * targets['Min_TDN'], "Min TDN"
+    prob += sum([INGREDIENT_DATA[i]['TDN'] * x[i] for i in ING_KEYS]) <= target_batch_kg * targets['Max_TDN'], "Max TDN"
     
-    # c) Maximum Protein Constraint
-    prob += sum([INGREDIENT_DATA[i]['Protein'] * x[i] for i in ING_KEYS]) <= target_batch_kg * TARGET_PROTEIN[1], "Max Protein"
+    # c) ADF (Fiber) constraint (Max)
+    prob += sum([INGREDIENT_DATA[i]['ADF'] * x[i] for i in ING_KEYS]) <= target_batch_kg * targets['Max_ADF'], "Max ADF"
     
-    # d) Ingredient Limits (e.g., max 50 kg of corn, just for example)
-    prob += x['Corn'] <= 70.0, "Max Corn"
+    # d) Ingredient Maximum Limits (Max_Ingred)
+    for ingred, max_prop in targets.get('Max_Ingred', {}).items():
+        prob += x[ingred] <= target_batch_kg * max_prop, f"Max {ingred}"
     
     # 5. Solve the problem
     prob.solve()
