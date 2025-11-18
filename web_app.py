@@ -5,8 +5,8 @@ import pickle
 import os
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GridSearchCV
-from fuzzywuzzy import fuzz
-from fuzzywuzzy import process
+from thefuzz import fuzz
+from thefuzz import process
 import sqlite3
 # Note: Ensure all packages are listed in requirements.txt
 
