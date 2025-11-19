@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template 
+from flask import Flask, request, render_template, redirect, url_for
 import numpy as np
 from sklearn.svm import SVR 
 import pickle
@@ -348,11 +348,29 @@ def create_app():
             # --- LP Solver Call ---
             formulation_result = least_cost_formulate(animal_type, target_batch_kg=100)
             # ... (rest of the logic remains the same) ...
+            if formulation_result is None or formulation_result.get('Status') == 'No Feasible Solution Found':
+                raise Exception("Optimization failed due to strict constraints or ingredient limits.")
             
+            result_data = {
+                'type': animal_type,
+                'targets': FORMULATION_TARGETS[animal_type], 
+                'lp_results': formulation_result
+            }
+
+            available_targets = list(FORMULATION_TARGETS.keys())
+            return render_template('formulation.html', available_targets=available_targets, result=result_data)
+        
         except KeyError as e:
             # Handle cases where input is empty or match is too low
-            error_message = f"Invalid animal type or low match score: {e}. Please try a more specific name."
-            animal_types = list(FORMULATION_TARGETS.keys())
+            error_message = f"Input Error: {e}"
+            available_targets = list(FORMULATION_TARGETS.keys())
+            return render_template('formulation.html', available_targets=available_targets, error=error_message)
+        
+        except Exception as e:
+            # Handle solver failure
+            error_message = f"Optimization Failed: {e}. Constraints may be impossible to meet."
+            available_targets = list(FORMULATION_TARGETS.keys())
+            return render_template('formulation.html', available_targets=available_targets, error=error_message)
             # Pass the matched key for suggested input
             return render_template('formulation.html', animal_types=animal_types, error=error_message)
     
