@@ -140,15 +140,17 @@ def get_analysis_data(app):
 
 from pulp import LpProblem, LpMinimize, LpVariable, value
 
-def least_cost_formulate(animal_type, target_batch_kg=100):
+def least_cost_formulate(animal_type, target_batch_kg=100, custom_targets=None):
     """
     Solves for the least-cost feed mix meeting nutritional targets 
     for a given animal type using Linear Programming.
     """
-    targets = FORMULATION_TARGETS.get(animal_type)
+    if custom_targets:
+        targets = custom_targets
+    else:
+        targets = FORMULATION_TARGETS.get(animal_type)
     if targets is None:
-        # If the animal type doesn't exist in the dictionary, return None immediately.
-        return None 
+        return None
     
     # Get the list of ingredients to be used for this animal (defined in the targets)
     ING_KEYS = targets['Ingredients'] # <--- This variable MUST be defined after the check!
@@ -374,6 +376,61 @@ def create_app():
             # Pass the matched key for suggested input
             return render_template('formulation.html', animal_types=animal_types, error=error_message)
     
+    # C:\FlaskAppTest\web_app.py
+
+    @app.route('/calculator')
+    def calculator_page():
+        # List of all available ingredients for guidance
+        all_ingredients = list(INGREDIENT_DATA.keys())
+        
+        try:
+            # Get user inputs from the form
+            target_cp = float(request.form['cp_target'])
+            
+            # Get the list of ingredients the user selected (they will be named 'ingredient_X' in the form)
+            selected_ingredients = [
+                request.form[key] for key in request.form 
+                if key.startswith('ingredient_') and request.form[key] in INGREDIENT_DATA
+            ]
+            
+            if len(selected_ingredients) < 2:
+                return render_template('calculator.html', ingredient_list=all_ingredients, error="Please select at least two ingredients for formulation.")
+
+            if target_cp <= 0 or target_cp > 100:
+                raise ValueError("Target CP must be a value between 1 and 100.")
+
+            # --- NEW: Create a custom TARGETS profile for the solver ---
+            
+            # We set simple, wide constraints around the user's requested CP and use the general energy/fiber limits.
+            custom_targets = {
+                'Min_Protein': target_cp / 100.0, # User's input is the minimum
+                'Max_Protein': (target_cp + 2) / 100.0, # Allow a little flexibility (+2%)
+                'Min_TDN': 0.70, 'Max_TDN': 0.95, # Wide energy range
+                'Min_ADF': 0.00, 'Max_ADF': 0.10, # Wide fiber range
+                'Ingredients': selected_ingredients,
+                'Max_Ingred': {} # No specific ingredient limits yet
+            }
+            
+            # --- Run the LP Solver with custom constraints ---
+            # Note: We pass 'CUSTOM_MIX' as the animal_type, but use custom_targets for constraints
+            results = least_cost_formulate('CUSTOM_MIX', target_batch_kg=100, custom_targets=custom_targets)
+            
+            if results is None or results.get('Status') == 'No Feasible Solution Found':
+                return render_template('calculator.html', ingredient_list=all_ingredients, error="Optimization failed. Ingredients cannot meet the target CP or constraints. Try a lower CP or adding protein/energy sources.")
+
+            # Success: Format results for display
+            result_data = {
+                'cp_target': target_cp,
+                'lp_results': results
+            }
+            
+            return render_template('calculator.html', ingredient_list=all_ingredients, result=result_data)
+            
+        except ValueError as e:
+            return render_template('calculator.html', ingredient_list=all_ingredients, error=f"Invalid Input: {e}")
+        except Exception as e:
+            return render_template('calculator.html', ingredient_list=all_ingredients, error=f"An unexpected server error occurred: {e}")
+
     @app.route('/analysis')
     def data_analysis():
         summary, all_predictions = get_analysis_data(app)
