@@ -164,9 +164,16 @@ def least_cost_formulate(animal_type, target_batch_kg=100, custom_targets=None):
     prob += sum([INGREDIENT_DATA[i]['Cost_USD_kg'] * x[i] for i in ING_KEYS]), "Total Cost"
     
     # 4. Constraints
+    for ingredient in ING_KEYS:
+        if ingredient == 'DCP/Lysine Premix':
+            prob += x[ingredient] >= target_batch_kg * 0.01, f"Min {ingredient} (Quality)"
+        elif ingredient == 'Rice Bran (D1)':
+            prob += x[ingredient] >= target_batch_kg * 0.10, f"Min {ingredient} (Staple)"
+        prob += x[ingredient] <= target_batch_kg * 0.70, f"Max {ingredient} (Diversity)"
     prob += sum([x[i] for i in ING_KEYS]) == target_batch_kg, "Total Weight"
 
     # Protein Constraints
+    
     prob += sum([INGREDIENT_DATA[i]['Protein'] * x[i] for i in ING_KEYS]) >= target_batch_kg * targets['Min_Protein'], "Min Protein"
     prob += sum([INGREDIENT_DATA[i]['Protein'] * x[i] for i in ING_KEYS]) <= target_batch_kg * targets['Max_Protein'], "Max Protein"
 
