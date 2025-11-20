@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feed Mix Calculator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .calc-input { width: 100px; text-align: center; }
+        .calc-result { font-size: 1.2em; font-weight: bold; color: #007bff; }
+        
+        /* New classes for grid layout and checkboxes */
+        .ingredient-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .ingredient-item {
+            display: flex;
+            align-items: center;
+        }
+        .ingredient-item label {
+            width: auto;
+            margin-left: 5px;
+            margin-bottom: 0; /* Override default label margin */
+            font-weight: normal; /* Checkbox labels don't need to be bold */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Custom Least-Cost Calculator</h1>
+        <p>Select your available ingredients and set a target Crude Protein (CP) percentage to calculate the most cost-effective mix.</p>
+
+        <form method="POST" action="{{ url_for('calculate_mix') }}">
+            
+            <h3>1. Target Crude Protein</h3>
+            <label for="cp_target">Target CP (%):</label>
+            <input type="number" step="0.01" name="cp_target" required class="calc-input" title="Target Crude Protein Percentage">
+            <hr>
+
+            <h3>2. Available Ingredients (Select at least two)</h3>
+            <div class="ingredient-grid">
+                {% for ingredient in ingredient_list %}
+                <div class="ingredient-item">
+                    <input type="checkbox" id="{{ ingredient }}" name="ingredient_{{ loop.index }}" value="{{ ingredient }}" title="Select {{ ingredient }}">
+                    <label for="{{ ingredient }}">{{ ingredient }}</label>
+                </div>
+                {% endfor %}
+            </div>
+
+            <button type="submit">Calculate Least-Cost Mix</button>
+        </form>
+
+        {% if error %}
+            <p class="error-message">**Error:** {{ error }}</p>
+        {% endif %}
+
+        {% if result %}
+            <div class="results">
+                <h2>Optimal Mix for {{ result.cp_target }}% CP</h2>
+                <p>Total Cost: <span class="calc-result">{{ result.lp_results.Cost }}</span></p>
+                
+                <table class="ingredient-table">
+                    <thead>
+                        <tr>
+                            <th>Ingredient</th>
+                            <th>Calculated Quantity (kg)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for name, quantity in result.lp_results.Ingredients %}
+                        <tr>
+                            <td>{{ name }}</td>
+                            <td><strong>{{ quantity }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p class="calc-note">
+                    *Note: Calculation based on Least-Cost Optimization.
+                </p>
+            </div>
+        {% endif %}
+        
+        <p class="nav-link-bottom">
+            <a href="{{ url_for('home') }}">← Back to Home</a>
+        </p>
+    </div>
+</body>
+</html>

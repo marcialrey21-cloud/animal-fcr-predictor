@@ -174,4 +174,10 @@ button[type="submit"]:hover {
 .profile-details-guide {
     margin-bottom: 20px;
 }
+/* --- Styling for the Calculation Note --- */
+.calc-note {
+    margin-top: 15px; /* Replicates the required spacing */
+    font-style: italic;
+    font-size: 0.9em;
+}
 /* Ensure you use a table class for the styling of the table below */
