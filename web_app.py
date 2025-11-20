@@ -8,15 +8,17 @@ from sklearn.model_selection import GridSearchCV
 from thefuzz import fuzz
 from thefuzz import process
 import sqlite3
-# Note: Ensure all packages are listed in requirements.txt
+from pulp import LpProblem, LpMinimize, LpVariable, value
 
 # Define the database and model files
 DATABASE = 'fcr_data.db' 
 MODEL_FILE = 'model.pkl'
 
-# --- Expanded Feed Formulation Data (Nutritional Targets with Proportions) ---
-# --- Nutritional Content and Cost Data (Example) ---
-# --- FORMULATION_TARGETS (Numeric Constraints based on Philippine Recommends) ---
+# ====================================================================
+# 1. GLOBAL DATA DEFINITIONS (MUST BE OUTSIDE create_app() FOR SCOPE)
+# ====================================================================
+
+# --- A. EXPANDED FORMULATION TARGETS (Nutrient Constraints) ---
 # NOTE: All min/max values are PROPORTIONS (e.g., 0.18 = 18%)
 FORMULATION_TARGETS = {
     # ------------------ SWINE (PIGS) - PIC/BAI Standards ------------------
@@ -25,49 +27,50 @@ FORMULATION_TARGETS = {
         'Min_TDN': 0.78, 'Max_TDN': 0.85, 
         'Min_ADF': 0.00, 'Max_ADF': 0.06,
         'Ingredients': ['Yellow Corn', 'Soybean Meal (44%)', 'Rice Bran (D1)', 'DCP/Lysine Premix'],
-        'Max_Ingred': {'Rice Bran (D1)': 0.30}, # Max 30% Rice Bran
+        'Max_Ingred': {'Rice Bran (D1)': 0.30}, 
     },
     'FINISHER PIG (75-100 kg)': {
         'Min_Protein': 0.13, 'Max_Protein': 0.15,
         'Min_TDN': 0.82, 'Max_TDN': 0.90,
         'Min_ADF': 0.00, 'Max_ADF': 0.04,
         'Ingredients': ['Yellow Corn', 'Soybean Meal (44%)', 'Rice Bran (D1)', 'DCP/Lysine Premix'],
-        'Max_Ingred': {'Rice Bran (D1)': 0.40}, # Max 40% Rice Bran
+        'Max_Ingred': {'Rice Bran (D1)': 0.40}, 
     },
 
     # ------------------ POULTRY - BAI/NRC Standards ------------------
     'BROILER CHICK (Starter)': {
-        'Min_Protein': 0.22, 'Max_Protein': 0.24, # High protein requirement
+        'Min_Protein': 0.22, 'Max_Protein': 0.24, 
         'Min_TDN': 0.85, 'Max_TDN': 0.90,
         'Min_ADF': 0.00, 'Max_ADF': 0.03,
         'Ingredients': ['Yellow Corn', 'Soybean Meal (44%)', 'Fish Meal (Local)', 'Limestone (Calcium)', 'DCP/Lysine Premix'],
-        'Max_Ingred': {'Fish Meal (Local)': 0.08}, # Max 8% Fish Meal
+        'Max_Ingred': {'Fish Meal (Local)': 0.08}, 
     },
     'LAYING HEN (Production)': {
         'Min_Protein': 0.16, 'Max_Protein': 0.18,
         'Min_TDN': 0.70, 'Max_TDN': 0.75,
         'Min_ADF': 0.03, 'Max_ADF': 0.07,
         'Ingredients': ['Yellow Corn', 'Soybean Meal (44%)', 'Rice Bran (D1)', 'Limestone (Calcium)', 'DCP/Lysine Premix'],
-        'Max_Ingred': {'Limestone (Calcium)': 0.10}, # Max 10% Limestone
+        'Max_Ingred': {'Limestone (Calcium)': 0.10}, 
     },
     
     # ------------------ RUMINANTS (BEEF/DAIRY) ------------------
     'BEEF CATTLE (Finisher)': {
         'Min_Protein': 0.12, 'Max_Protein': 0.14,
         'Min_TDN': 0.70, 'Max_TDN': 0.75,
-        'Min_ADF': 0.25, 'Max_ADF': 0.35, # Requires high fiber
+        'Min_ADF': 0.25, 'Max_ADF': 0.35, 
         'Ingredients': ['Corn Silage', 'Soybean Meal (44%)', 'Yellow Corn', 'DCP/Lysine Premix'],
-        'Max_Ingred': {'Corn Silage': 0.70}, # Max 70% Silage
+        'Max_Ingred': {'Corn Silage': 0.70}, 
     },
     'DAIRY COW (Lactating)': {
         'Min_Protein': 0.17, 'Max_Protein': 0.19,
         'Min_TDN': 0.75, 'Max_TDN': 0.80, 
         'Min_ADF': 0.18, 'Max_ADF': 0.21,
         'Ingredients': ['Corn Silage', 'Alfalfa Hay', 'Soybean Meal (44%)', 'Yellow Corn', 'DCP/Lysine Premix'],
-        'Max_Ingred': {'Corn Silage': 0.60, 'Yellow Corn': 0.40}, # Max limits on energy and forage
+        'Max_Ingred': {'Corn Silage': 0.60, 'Yellow Corn': 0.40}, 
     },
 }
 
+# --- B. INGREDIENT DATA (Costs and Nutrient Profiles) ---
 INGREDIENT_DATA = {
     # ENERGY SOURCES
     'Yellow Corn': {'Cost_USD_kg': 0.25, 'Protein': 0.08, 'TDN': 0.88, 'ADF': 0.03},
@@ -85,10 +88,14 @@ INGREDIENT_DATA = {
     'Limestone (Calcium)': {'Cost_USD_kg': 0.05, 'Protein': 0.00, 'TDN': 0.00, 'ADF': 0.00},
     'DCP/Lysine Premix': {'Cost_USD_kg': 1.20, 'Protein': 0.00, 'TDN': 0.00, 'ADF': 0.00},
 }
-# --- Database Initialization (Runs once when app starts) ---
+
+
+# ====================================================================
+# 2. HELPER FUNCTIONS (Database, Analysis, and Solver)
+# ====================================================================
+
 def init_db(app):
     """Initializes the database and creates the prediction table."""
-    # Use app.root_path to ensure the DB file is created in the correct place
     db_path = os.path.join(app.root_path, DATABASE)
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -105,7 +112,6 @@ def init_db(app):
     conn.commit()
     conn.close()
 
-# --- Analysis Function ---
 def get_analysis_data(app):
     """Fetches all predictions and calculates summary statistics."""
     db_path = os.path.join(app.root_path, DATABASE)
@@ -117,7 +123,6 @@ def get_analysis_data(app):
     
     conn.close()
     
-    # ... (Rest of analysis logic remains the same) ...
     data_list = [{'weight': w, 'temp': t, 'fcr': f, 'time': ts} 
                  for w, t, f, ts in all_predictions]
     
@@ -136,29 +141,23 @@ def get_analysis_data(app):
         
     return summary, data_list
 
-# C:\FlaskAppTest\web_app.py (New Solver Function)
-
-from pulp import LpProblem, LpMinimize, LpVariable, value
 
 def least_cost_formulate(animal_type, target_batch_kg=100, custom_targets=None):
-    """
-    Solves for the least-cost feed mix meeting nutritional targets 
-    for a given animal type using Linear Programming.
-    """
+    """Solves for the least-cost feed mix meeting nutritional targets."""
+    
+    # 1. Determine which targets to use: custom or predefined
     if custom_targets:
         targets = custom_targets
     else:
         targets = FORMULATION_TARGETS.get(animal_type)
+    
     if targets is None:
-        return None
+        return None 
     
-    # Get the list of ingredients to be used for this animal (defined in the targets)
-    ING_KEYS = targets['Ingredients'] # <--- This variable MUST be defined after the check!
+    ING_KEYS = targets['Ingredients'] 
     
-    # --- 2. Setup the Linear Problem ---
+    # 2. Setup the Linear Problem
     prob = LpProblem("Least Cost Feed Mix", LpMinimize)
-    
-    # Decision Variables: Quantity (kg) of each ingredient to use
     x = LpVariable.dicts("Quantity", ING_KEYS, 0)
     
     # 3. Objective Function: Minimize Total Cost
@@ -166,18 +165,19 @@ def least_cost_formulate(animal_type, target_batch_kg=100, custom_targets=None):
     
     # 4. Constraints
     prob += sum([x[i] for i in ING_KEYS]) == target_batch_kg, "Total Weight"
-    # a) protein constraints (Min and Max)
+
+    # Protein Constraints
     prob += sum([INGREDIENT_DATA[i]['Protein'] * x[i] for i in ING_KEYS]) >= target_batch_kg * targets['Min_Protein'], "Min Protein"
     prob += sum([INGREDIENT_DATA[i]['Protein'] * x[i] for i in ING_KEYS]) <= target_batch_kg * targets['Max_Protein'], "Max Protein"
 
-    # b) TDN (Energy) constraints (Min and Max)
+    # TDN (Energy) Constraints
     prob += sum([INGREDIENT_DATA[i]['TDN'] * x[i] for i in ING_KEYS]) >= target_batch_kg * targets['Min_TDN'], "Min TDN"
     prob += sum([INGREDIENT_DATA[i]['TDN'] * x[i] for i in ING_KEYS]) <= target_batch_kg * targets['Max_TDN'], "Max TDN"
     
-    # c) ADF (Fiber) constraint (Max)
+    # ADF (Fiber) Constraint
     prob += sum([INGREDIENT_DATA[i]['ADF'] * x[i] for i in ING_KEYS]) <= target_batch_kg * targets['Max_ADF'], "Max ADF"
     
-    # d) Ingredient Maximum Limits (Max_Ingred)
+    # Ingredient Maximum Limits
     for ingred, max_prop in targets.get('Max_Ingred', {}).items():
         prob += x[ingred] <= target_batch_kg * max_prop, f"Max {ingred}"
     
@@ -185,8 +185,9 @@ def least_cost_formulate(animal_type, target_batch_kg=100, custom_targets=None):
     prob.solve()
     
     # 6. Extract Results
-    if prob.status == 1: # 1 means optimal solution found
-        results = {
+    if prob.status == 1: 
+        return {
+            'Status': 'Optimal Solution Found',
             'Cost': f"${value(prob.objective):.2f}",
             'Total_Weight_Check': value(sum([x[i] for i in ING_KEYS])),
             'Ingredients': [
@@ -194,11 +195,13 @@ def least_cost_formulate(animal_type, target_batch_kg=100, custom_targets=None):
             ]
         }
     else:
-        results = None # No feasible solution
-        
-    return results
+        return {'Status': 'No Feasible Solution Found'}
 
-# --- The Application Factory ---
+
+# ====================================================================
+# 3. APPLICATION FACTORY AND ROUTES
+# ====================================================================
+
 def create_app():
     app = Flask(__name__)
     
@@ -216,7 +219,7 @@ def create_app():
     X = np.array(data['features'])
     y = np.array(data['target'])
     
-    # Use app.root_path for file locations in production
+    # Use app.root_path for file locations
     model_path = os.path.join(app.root_path, MODEL_FILE)
 
     if os.path.exists(model_path):
@@ -227,7 +230,6 @@ def create_app():
             X_scaler = saved_objects['X_scaler']
             y_scaler = saved_objects['y_scaler']
     else:
-        # NOTE: In production, this block runs only once during the first deployment
         print("Model file not found. Starting training and hyperparameter tuning...")
         
         X_scaler = StandardScaler() 
@@ -249,7 +251,7 @@ def create_app():
         print(f"Best model and scalers saved to {MODEL_FILE}")
 
 
-    # --- Prediction Function (Nested in factory to access model/scalers) ---
+    # --- Prediction Function (Nested to access model/scalers) ---
     def predict_fcr(weight, temperature):
         new_data = np.array([[weight, temperature]])
         new_data_scaled = X_scaler.transform(new_data)
@@ -259,11 +261,14 @@ def create_app():
         predicted_fcr = y_scaler.inverse_transform(predicted_fcr_reshaped)[0][0]
         return predicted_fcr
 
-    # --- Database Initialization ---
+
+    # --- Database Initialization (Runs once per startup) ---
     with app.app_context():
         init_db(app)
 
-    # --- 3. Flask Routes ---
+    # ====================================================================
+    # 4. FLASK ROUTES
+    # ====================================================================
     
     @app.route('/')
     def home():
@@ -287,149 +292,126 @@ def create_app():
             error_message = "Please enter valid NUMERIC values for Weight and Temperature."
             return render_template('index.html', result=None, error=error_message)
 
-        # Prediction
+        # Prediction & Database Saving
         predicted_value = predict_fcr(weight, temp)
         
-        # Database Saving
         db_path = os.path.join(app.root_path, DATABASE)
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO predictions (weight, temperature, predicted_fcr) VALUES (?, ?, ?)",
-            (weight, temp, predicted_value)
-        )
+        cursor.execute("INSERT INTO predictions (weight, temperature, predicted_fcr) VALUES (?, ?, ?)", (weight, temp, predicted_value))
         conn.commit()
         conn.close()
 
         # Recommendation
         recommendation = "FCR is high. Consider adjusting diet composition or checking for heat stress." if predicted_value > 2.6 else "FCR is within an acceptable range for current conditions."
-            
         result_data = {'weight': weight, 'temp': temp, 'fcr': f'{predicted_value:.3f}', 'recommendation': recommendation}
         return render_template('index.html', result=result_data)
 
     @app.route('/formulation')
     def formulation_page():
-        """Renders the feed formulation input page."""
-        # Pass the keys for the guidance list in the HTML
+        """Renders the standard feed formulation input page."""
         available_targets = list(FORMULATION_TARGETS.keys()) 
         return render_template('formulation.html', available_targets=available_targets, result=None)
-    # C:\FlaskAppTest\web_app.py (Inside the formulate function)
-    @app.route('/formulate', methods=['GET', 'POST'])
-    def formulate():
-        if request.method == 'GET':
-            from flask import redirect, url_for
-            return redirect(url_for('formulation_page'))
-        try:
-            # Get user's typed input
-            user_input = request.form['animal_type'].strip().upper() 
-            
-            # --- NEW FUZZY MATCHING LOGIC ---
-            
-            # 1. Define the list of available keys to match against
-            available_targets = list(FORMULATION_TARGETS.keys())
-            
-            # 2. Find the best match using fuzzywuzzy
-            # Returns (Best Match String, Score, Key)
-            best_match = process.extractOne(
-                user_input, 
-                available_targets,
-                scorer=fuzz.ratio # Use the standard Levenshtein ratio
-            )
-            
-            best_match_key = best_match[0]
-            score = best_match[1]
-            
-            # 3. Set a minimum score threshold (e.g., 70 out of 100)
-            if score < 70:
-                raise KeyError(f"No close match found for '{user_input}'. Best guess: {best_match_key} (Score: {score}).")
-
-            # Use the matched key for formulation
-            animal_type = best_match_key
-            # --- END FUZZY MATCHING LOGIC ---
-            
-            # --- LP Solver Call ---
-            formulation_result = least_cost_formulate(animal_type, target_batch_kg=100)
-            # ... (rest of the logic remains the same) ...
-            if formulation_result is None or formulation_result.get('Status') == 'No Feasible Solution Found':
-                raise Exception("Optimization failed due to strict constraints or ingredient limits.")
-            
-            result_data = {
-                'type': animal_type,
-                'targets': FORMULATION_TARGETS[animal_type], 
-                'lp_results': formulation_result
-            }
-
-            available_targets = list(FORMULATION_TARGETS.keys())
-            return render_template('formulation.html', available_targets=available_targets, result=result_data)
-        
-        except KeyError as e:
-            # Handle cases where input is empty or match is too low
-            error_message = f"Input Error: {e}"
-            available_targets = list(FORMULATION_TARGETS.keys())
-            return render_template('formulation.html', available_targets=available_targets, error=error_message)
-        
-        except Exception as e:
-            # Handle solver failure
-            error_message = f"Optimization Failed: {e}. Constraints may be impossible to meet."
-            available_targets = list(FORMULATION_TARGETS.keys())
-            return render_template('formulation.html', available_targets=available_targets, error=error_message)
-            # Pass the matched key for suggested input
-            return render_template('formulation.html', animal_types=animal_types, error=error_message)
     
-    # C:\FlaskAppTest\web_app.py
-
     @app.route('/calculator')
     def calculator_page():
-        # List of all available ingredients for guidance
-        all_ingredients = list(INGREDIENT_DATA.keys())
+        """Renders the custom multi-ingredient calculator input form."""
+        ingredient_list = list(INGREDIENT_DATA.keys()) 
+        return render_template('calculator.html', ingredient_list=ingredient_list, result=None)
+
+    @app.route('/calculate_mix', methods=['POST'])
+    def calculate_mix():
+        # This route should be safe now that INGREDIENT_DATA is global
+        ingredient_list = list(INGREDIENT_DATA.keys())
         
         try:
-            # Get user inputs from the form
             target_cp = float(request.form['cp_target'])
             
-            # Get the list of ingredients the user selected (they will be named 'ingredient_X' in the form)
+            # Get the list of ingredients the user selected
             selected_ingredients = [
                 request.form[key] for key in request.form 
                 if key.startswith('ingredient_') and request.form[key] in INGREDIENT_DATA
             ]
             
             if len(selected_ingredients) < 2:
-                return render_template('calculator.html', ingredient_list=all_ingredients, error="Please select at least two ingredients for formulation.")
+                return render_template('calculator.html', ingredient_list=ingredient_list, error="Please select at least two ingredients for formulation.")
 
             if target_cp <= 0 or target_cp > 100:
                 raise ValueError("Target CP must be a value between 1 and 100.")
 
-            # --- NEW: Create a custom TARGETS profile for the solver ---
-            
-            # We set simple, wide constraints around the user's requested CP and use the general energy/fiber limits.
+            # Create custom targets for the solver
             custom_targets = {
-                'Min_Protein': target_cp / 100.0, # User's input is the minimum
-                'Max_Protein': (target_cp + 2) / 100.0, # Allow a little flexibility (+2%)
-                'Min_TDN': 0.70, 'Max_TDN': 0.95, # Wide energy range
-                'Min_ADF': 0.00, 'Max_ADF': 0.10, # Wide fiber range
+                'Min_Protein': target_cp / 100.0, 
+                'Max_Protein': (target_cp + 2) / 100.0, 
+                'Min_TDN': 0.70, 'Max_TDN': 0.95, 
+                'Min_ADF': 0.00, 'Max_ADF': 0.10, 
                 'Ingredients': selected_ingredients,
-                'Max_Ingred': {} # No specific ingredient limits yet
+                'Max_Ingred': {} 
             }
             
-            # --- Run the LP Solver with custom constraints ---
-            # Note: We pass 'CUSTOM_MIX' as the animal_type, but use custom_targets for constraints
+            # Run the LP Solver
             results = least_cost_formulate('CUSTOM_MIX', target_batch_kg=100, custom_targets=custom_targets)
             
             if results is None or results.get('Status') == 'No Feasible Solution Found':
-                return render_template('calculator.html', ingredient_list=all_ingredients, error="Optimization failed. Ingredients cannot meet the target CP or constraints. Try a lower CP or adding protein/energy sources.")
+                return render_template('calculator.html', ingredient_list=ingredient_list, error="Optimization failed. Ingredients cannot meet the target CP or constraints. Try a lower CP or adding protein/energy sources.")
 
-            # Success: Format results for display
-            result_data = {
-                'cp_target': target_cp,
-                'lp_results': results
-            }
+            # Success: Format results
+            result_data = {'cp_target': target_cp, 'lp_results': results}
             
-            return render_template('calculator.html', ingredient_list=all_ingredients, result=result_data)
+            return render_template('calculator.html', ingredient_list=ingredient_list, result=result_data)
             
         except ValueError as e:
-            return render_template('calculator.html', ingredient_list=all_ingredients, error=f"Invalid Input: {e}")
+            return render_template('calculator.html', ingredient_list=ingredient_list, error=f"Invalid Input: {e}")
         except Exception as e:
-            return render_template('calculator.html', ingredient_list=all_ingredients, error=f"An unexpected server error occurred: {e}")
+            return render_template('calculator.html', ingredient_list=ingredient_list, error=f"An unexpected server error occurred: {e}")
+
+
+    @app.route('/formulate', methods=['GET', 'POST'])
+    def formulate():
+        if request.method == 'GET':
+            return redirect(url_for('formulation_page'))
+        
+        # --- Handle POST Request (Form Submission) ---
+        try:
+            # Get user's typed input
+            user_input = request.form['animal_type'].strip().upper() 
+            
+            available_targets = list(FORMULATION_TARGETS.keys())
+            
+            # Fuzzy match to find the correct profile
+            best_match = process.extractOne(user_input, available_targets, scorer=fuzz.ratio)
+            best_match_key = best_match[0]
+            score = best_match[1]
+            
+            if score < 70:
+                raise KeyError(f"No close match found for '{user_input}'. Best guess: {best_match_key} (Score: {score}).")
+
+            animal_type = best_match_key
+            
+            # LP Solver Call
+            formulation_result = least_cost_formulate(animal_type, target_batch_kg=100)
+
+            # Check for solver failure
+            if formulation_result is None or formulation_result.get('Status') == 'No Feasible Solution Found':
+                raise Exception("Optimization failed due to strict constraints.")
+            
+            
+            # Prepare successful result data
+            result_data = {'type': animal_type, 'targets': FORMULATION_TARGETS[animal_type], 'lp_results': formulation_result}
+
+            available_targets = list(FORMULATION_TARGETS.keys())
+            return render_template('formulation.html', available_targets=available_targets, result=result_data)
+            
+        except KeyError as e:
+            error_message = f"Input Error: {e}"
+            available_targets = list(FORMULATION_TARGETS.keys())
+            return render_template('formulation.html', available_targets=available_targets, error=error_message)
+        
+        except Exception as e:
+            error_message = f"Optimization Failed: {e}. Constraints may be impossible to meet."
+            available_targets = list(FORMULATION_TARGETS.keys())
+            return render_template('formulation.html', available_targets=available_targets, error=error_message)
+
 
     @app.route('/analysis')
     def data_analysis():
@@ -451,9 +433,8 @@ def create_app():
     # --- Crucial: Return the configured app instance ---
     return app
 
-# ---tumakbo ka na ---
+
 # --- Local Runner for Development ONLY ---
 if __name__ == '__main__':
-    # When running locally, call the factory to get the app
     local_app = create_app()
     local_app.run(debug=True)
