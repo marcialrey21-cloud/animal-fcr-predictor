@@ -180,4 +180,13 @@ button[type="submit"]:hover {
     font-style: italic;
     font-size: 0.9em;
 }
+/* --- New style for the FCR Predictor Animal Type Selector --- */
+.form-select-wide {
+    width: 100%;
+    margin-bottom: 15px;
+    padding: 8px;
+    border-radius: 5px;
+    /* Ensure it inherits styles correctly */
+    border: 1px solid #ccc; 
+}
 /* Ensure you use a table class for the styling of the table below */

@@ -11,16 +11,22 @@
         
         <div class="nav-link-bar">
             <a href="{{ url_for('formulation_page') }}" class="nav-link-item">Go to Feed Formulation Guide →</a>
-            <a href="{{ url_for('data_analysis') }}" class="nav-link-item">View Data Analysis →</a>
-        </div>
-        <div class="nav-link-bar">
-            <a href="{{ url_for('formulation_page') }}" class="nav-link-item">Go to Feed Formulation Guide →</a>
             <a href="{{ url_for('calculator_page') }}" class="nav-link-item">Custom Calculator →</a>
+            <a href="{{ url_for('data_analysis') }}" class="nav-link-item">View Data Analysis →</a>
         </div>
 
         <h1>Animal Feed Conversion Ratio (FCR) Predictor</h1>
 
         <form method="POST" action="{{ url_for('predict') }}">
+            
+            <label for="animal_type">Animal Type:</label>
+            <select name="animal_type" required title="Select the animal type" class="form-select-wide"></select>
+                <option value="">-- Select Species --</option>
+                {% for type in fcr_animal_types %}
+                <option value="{{ type }}">{{ type }}</option>
+                {% endfor %}
+            </select>
+            
             <label for="weight">Animal Weight (kg):</label>
             <input type="number" step="any" name="weight" title="Enter the animal's weight in kilograms" required><br>
 
@@ -36,7 +42,7 @@
 
         {% if result %}
             <div class="results">
-                <h2>Prediction Results</h2>
+                <h2>Prediction Results ({{ result.animal_type }})</h2>
                 <p>Input Weight: {{ result.weight }} kg</p>
                 <p>Input Temperature: {{ result.temp }} °C</p>
                 <div class="fcr-result">Predicted FCR: {{ result.fcr }}</div>
