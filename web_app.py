@@ -1,18 +1,21 @@
 from flask import Flask, request, render_template, redirect, url_for
 import numpy as np
+import pandas as pd
 from sklearn.svm import SVR 
 import pickle
 import os
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.model_selection import GridSearchCV
 from thefuzz import fuzz
 from thefuzz import process
-import sqlite3
 from pulp import LpProblem, LpMinimize, LpVariable, value
+import pickle
+import os
+import sqlite3
 
-# Define the database and model files
 DATABASE = 'fcr_data.db' 
 MODEL_FILE = 'model.pkl'
+FCR_ANIMAL_TYPES = ['PIG', 'CATTLE', 'POULTRY']
 
 # ====================================================================
 # 1. GLOBAL DATA DEFINITIONS (MUST BE OUTSIDE create_app() FOR SCOPE)
@@ -213,20 +216,15 @@ def create_app():
     app = Flask(__name__)
     
     # --- Model Loading / Training Logic ---
-    data = {
-        'features': [
-            [50, 20], [55, 21], [60, 22], [45, 19], [70, 23],
-            [65, 20], [52, 25], [58, 18], [48, 24], [75, 21]
-        ],
-        'target': [
-            2.5, 2.4, 2.6, 2.3, 2.7,
-            2.55, 2.8, 2.35, 2.75, 2.6
-        ]
+    # 1. EXPANDED TRAINING DATA (Simulated data for three species)
+    raw_data = {
+        'Type': ['PIG'] * 5 + ['CATTLE'] * 5 + ['POULTRY'] * 5,
+        'Weight_kg': [50, 55, 60, 45, 70,    200, 250, 300, 150, 350,   1.5, 2.0, 1.2, 1.8, 2.5],
+        'Temp_C': [20, 21, 22, 19, 23,        15, 18, 16, 20, 17,       25, 24, 26, 23, 27],
+        'FCR': [2.5, 2.4, 2.6, 2.3, 2.7,      6.5, 6.4, 6.8, 6.0, 7.0,   1.8, 1.7, 1.9, 1.6, 2.0]
     }
-    X = np.array(data['features'])
-    y = np.array(data['target'])
-    
-    # Use app.root_path for file locations
+
+    df = pd.DataFrame(raw_data)
     model_path = os.path.join(app.root_path, MODEL_FILE)
 
     if os.path.exists(model_path):
@@ -236,34 +234,49 @@ def create_app():
             model = saved_objects['model']
             X_scaler = saved_objects['X_scaler']
             y_scaler = saved_objects['y_scaler']
+            ohe = saved_objects['ohe']
     else:
         print("Model file not found. Starting training and hyperparameter tuning...")
         
+        ohe = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
+        X_cat_encoded = ohe.fit_transform(df[['Type']])
+
+        X_num = df[['Weight_kg', 'Temp_C']].values
         X_scaler = StandardScaler() 
+        X_num_scaled = X_scaler.fit_transform(X_num)
+
+        X_final_scaled = np.hstack((X_num_scaled, X_cat_encoded))
+
+        y_reshaped = df['FCR'].values.reshape(-1, 1)
         y_scaler = StandardScaler() 
-        X_scaled = X_scaler.fit_transform(X)
-        y_reshaped = y.reshape(-1, 1)
         y_scaled = y_scaler.fit_transform(y_reshaped)
 
-        param_grid = {'C': [0.1, 1, 10, 100, 1000], 'gamma': [0.001, 0.01, 0.1, 1], 'kernel': ['rbf']}
-        grid_search = GridSearchCV(estimator=SVR(), param_grid=param_grid, scoring='neg_mean_squared_error', cv=3, verbose=1)
-        grid_search.fit(X_scaled, y_scaled.ravel())
+        param_grid = {'C': [0.1, 1, 10, 100], 'gamma': [0.01, 0.1, 1], 'kernel': ['rbf']}
+        grid_search = GridSearchCV(estimator=SVR(), param_grid=param_grid, scoring='neg_mean_squared_error', cv=3)
+        grid_search.fit(X_final_scaled, y_scaled.ravel())
         
         model = grid_search.best_estimator_
         print(f"Tuning complete. Best parameters found: {grid_search.best_params_}")
-        
-        saved_objects = {'model': model, 'X_scaler': X_scaler, 'y_scaler': y_scaler}
+
+        saved_objects = {'model': model, 'X_scaler': X_scaler, 'y_scaler': y_scaler, 'ohe': ohe}
         with open(model_path, 'wb') as file:
             pickle.dump(saved_objects, file)
-        print(f"Best model and scalers saved to {MODEL_FILE}")
+        print(f"Model and scalers saved to {MODEL_FILE}")
 
 
-    # --- Prediction Function (Nested to access model/scalers) ---
-    def predict_fcr(weight, temperature):
-        new_data = np.array([[weight, temperature]])
-        new_data_scaled = X_scaler.transform(new_data)
-        predicted_fcr_scaled = model.predict(new_data_scaled)
-        
+    # --- Prediction Function (Updated to accept animal_type) ---
+    def predict_fcr(animal_type, weight, temperature):
+
+        new_data_num = np.array([[weight, temperature]])
+        input_df = pd.DataFrame([{'Type': animal_type}])
+
+        new_data_cat_encoded = ohe.transform(input_df[['Type']]).toarray()
+
+        new_data_num_scaled = X_scaler.transform(new_data_num)
+
+        new_data_final = np.hstack((new_data_num_scaled, new_data_cat_encoded))
+        predicted_fcr_scaled = model.predict(new_data_final)
+
         predicted_fcr_reshaped = predicted_fcr_scaled.reshape(-1, 1)
         predicted_fcr = y_scaler.inverse_transform(predicted_fcr_reshaped)[0][0]
         return predicted_fcr
@@ -271,7 +284,7 @@ def create_app():
 
     # --- Database Initialization (Runs once per startup) ---
     with app.app_context():
-        init_db(app)
+        init_db(app)    
 
     # ====================================================================
     # 4. FLASK ROUTES
@@ -279,11 +292,17 @@ def create_app():
     
     @app.route('/')
     def home():
-        return render_template('index.html', result=None)
+        animal_types_list = FCR_ANIMAL_TYPES
+
+        if not animal_types_list:
+            print("CRITICAL: FCR_ANIMAL_TYPES is empty at runtime.")
+        
+        return render_template('index.html', result=None, fcr_animal_types=FCR_ANIMAL_TYPES)
 
     @app.route('/predict', methods=['POST'])
     def predict():
         try:
+            animal_type = request.form['animal_type'] # NEW: Get Animal Type
             weight_str = request.form['weight']
             temp_str = request.form['temp']
             if not weight_str or not temp_str: raise KeyError 
@@ -292,27 +311,20 @@ def create_app():
             temp = float(temp_str)
         
         except KeyError:
-            error_message = "Please fill in BOTH Animal Weight and Ambient Temperature."
-            return render_template('index.html', result=None, error=error_message)
+            error_message = "Please fill in ALL fields."
+            return render_template('index.html', result=None, error=error_message, fcr_animal_types=FCR_ANIMAL_TYPES)
 
         except ValueError:
-            error_message = "Please enter valid NUMERIC values for Weight and Temperature."
-            return render_template('index.html', result=None, error=error_message)
+            error_message = "Please enter valid NUMERIC values."
+            return render_template('index.html', result=None, error=error_message, fcr_animal_types=FCR_ANIMAL_TYPES)
 
         # Prediction & Database Saving
-        predicted_value = predict_fcr(weight, temp)
-        
-        db_path = os.path.join(app.root_path, DATABASE)
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO predictions (weight, temperature, predicted_fcr) VALUES (?, ?, ?)", (weight, temp, predicted_value))
-        conn.commit()
-        conn.close()
+        predicted_value = predict_fcr(animal_type, weight, temp)
 
-        # Recommendation
         recommendation = "FCR is high. Consider adjusting diet composition or checking for heat stress." if predicted_value > 2.6 else "FCR is within an acceptable range for current conditions."
-        result_data = {'weight': weight, 'temp': temp, 'fcr': f'{predicted_value:.3f}', 'recommendation': recommendation}
-        return render_template('index.html', result=result_data)
+        result_data = {'animal_type': animal_type, 'weight': weight, 'temp': temp, 'fcr': f'{predicted_value:.3f}', 'recommendation': recommendation}
+        
+        return render_template('index.html', result=result_data, fcr_animal_types=FCR_ANIMAL_TYPES)
 
     @app.route('/formulation')
     def formulation_page():
