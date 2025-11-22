@@ -270,7 +270,7 @@ def create_app():
         new_data_num = np.array([[weight, temperature]])
         input_df = pd.DataFrame([{'Type': animal_type}])
 
-        new_data_cat_encoded = ohe.transform(input_df[['Type']]).toarray()
+        new_data_cat_encoded = ohe.transform(input_df[['Type']])
 
         new_data_num_scaled = X_scaler.transform(new_data_num)
 
