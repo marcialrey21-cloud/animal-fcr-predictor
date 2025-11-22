@@ -20,14 +20,12 @@
         <form method="POST" action="{{ url_for('predict') }}">
             
             <label for="animal_type">Animal Type:</label>
-            <select name="animal_type" required title="Select the animal type" class="form-select-wide"></select>
+            <select name="animal_type" required title="Select the animal type" class="form-select-wide">
                 <option value="">-- Select Species --</option>
                 {% for type in fcr_animal_types %}
                 <option value="{{ type }}">{{ type }}</option>
                 {% endfor %}
-            </select>
-            
-            <label for="weight">Animal Weight (kg):</label>
+            </select> <label for="weight">Animal Weight (kg):</label>
             <input type="number" step="any" name="weight" title="Enter the animal's weight in kilograms" required><br>
 
             <label for="temp">Ambient Temperature (°C):</label>
