@@ -1,0 +1,9 @@
+# Ignore files not needed in the container
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+# Ignore the database and model file (they will be created/downloaded on first run)
+fcr_data.db
+model.pkl
